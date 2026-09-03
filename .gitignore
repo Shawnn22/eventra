@@ -15,6 +15,7 @@ node_modules/
 /CLAUDE.md
 /GROK_*
 /docs/GROK_*
+/docs/FULL_FLOW_DEMO_SCRIPT.md
 
 # Foundry dependencies and generated artifacts
 /contracts/lib/
