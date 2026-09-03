@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Eventra">
+  <path fill="#12131A" d="M8 10h38a8 8 0 0 1 8 8v8H26a8 8 0 0 0-8 8v2H8V10Z"/>
+  <path fill="#7357F6" d="M8 38h10v2a8 8 0 0 0 8 8h28v8a8 8 0 0 1-8 8H8V38Z"/>
+  <rect width="14" height="14" x="25" y="25" rx="3" fill="#D9FF57"/>
+</svg>

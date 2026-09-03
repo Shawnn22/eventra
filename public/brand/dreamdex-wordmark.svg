@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 276 48" role="img" aria-label="DreamDEX">
+  <g fill="none" stroke="#F8F9FC" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 4h-4c-6 0-7 4-7 9v5c0 4-2 6-6 6 4 0 6 2 6 6v5c0 5 1 9 7 9h4"/>
+    <path d="M47 4h4c6 0 7 4 7 9v5c0 4 2 6 6 6-4 0-6 2-6 6v5c0 5-1 9-7 9h-4"/>
+  </g>
+  <text x="27" y="37" fill="#F8F9FC" font-family="Inter, Arial, sans-serif" font-size="38" font-weight="400">d</text>
+  <text x="76" y="37" fill="#F8F9FC" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="400" letter-spacing="-1.2">dreamdex</text>
+</svg>
