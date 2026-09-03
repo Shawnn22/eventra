@@ -1,0 +1,52 @@
+{
+  "network": "Somnia Shannon Testnet",
+  "chainId": 50312,
+  "rpcUrl": "https://dream-rpc.somnia.network",
+  "explorerUrl": "https://shannon-explorer.somnia.network",
+  "owner": "0x2fb4Cc11EcE8255c25A00a8d28ff54D92De4b360",
+  "contracts": {
+    "DreamPilotGuard": {
+      "address": "0xd2faBC3C9A096cEe10FC75e67f351E579B91EC38",
+      "deploymentTransaction": "0xb17e78efe02051a956c0a8df94b60b6e4922af27605361cff9d903d93b0cb5a3",
+      "runtimeCodeBytes": 8205
+    },
+    "ForecastRegistry": {
+      "address": "0x3a88155FeA234FCda46cffD3B5a059DA4Fa52F7e",
+      "deploymentTransaction": "0xbc3e63c9674daa7788bf13a7d8d7f578eca4736961698ce7c6e3b24365bcd08a",
+      "runtimeCodeBytes": 5648
+    },
+    "EventraAnalysisEscrow": {
+      "address": "0xc4a0e9fB3f004392c22cA4d666f8756E9e99ec8C",
+      "deploymentTransaction": "0xc1c136843a70327b837c458e2c3613796808c1d72abc902e4d5aac6b1717781d",
+      "runtimeCodeBytes": 4555,
+      "paymentToken": "0x70a86D8842FB63C4Ad2b7cdddF530eBf1BB25d8E",
+      "treasury": "0x2fb4Cc11EcE8255c25A00a8d28ff54D92De4b360"
+    }
+  },
+  "roles": {
+    "adviceSigner": "0x2fb4Cc11EcE8255c25A00a8d28ff54D92De4b360",
+    "forecastSigner": "0x2fb4Cc11EcE8255c25A00a8d28ff54D92De4b360",
+    "resolver": "0x2fb4Cc11EcE8255c25A00a8d28ff54D92De4b360",
+    "analysisFulfiller": "0x2fb4Cc11EcE8255c25A00a8d28ff54D92De4b360"
+  },
+  "roleTransactions": {
+    "adviceSigner": "0x2266b61f550031201d9d19f843828e9199ffec28488e03ebce79e68b5ab6eda5",
+    "forecastSigner": "0x89c232f8cf2bee2b2b14bb91692614befc0fed0a53f4cb135456feb780c69544",
+    "resolver": "0xacbbf5560339833b3fa1bdf03ad08bcd3c2e438323f91dee2e0a1b132c14dea0",
+    "analysisFulfiller": "0xd4bb4ca9391fd008a95bf897575c5310ed7fcfdb8ef320f2c9b947b57f0ab0d2",
+    "analysisModels": {
+      "eventra-core": "0x844d47936ac9c941ce15b04681a25de671373625cc88a433966521a3cdc2e620",
+      "deepseek": "0xd6a1af2717f0a1bc67ca351b5441cc97b9643182f45b21e5b280e9449730538a",
+      "chatgpt": "0x1a7a8725c971f7216ea10ffd59ffe27abcad9a469ca0b6a3f465ddcec2eb577e",
+      "claude": "0x55cab15ed475588242fccfc9bbf409d67e0fb38fda687e7ea1d627cf0443929b",
+      "grok": "0xfbb8fb6aa69f1159a14ef888ee9b6e5a0549d2dfdcb0443e0fa3d7864df14d88",
+      "surf": "0x889be96ba1a6a6db687f221904786b9094dfc47852114c373f20a98fa4a94c75"
+    }
+  },
+  "compiler": {
+    "solidity": "0.8.28",
+    "evmVersion": "paris",
+    "optimizer": true,
+    "optimizerRuns": 200
+  }
+}
