@@ -1,0 +1,50 @@
+.brand > i { color: #a5a9b1; font-size: 12px; font-style: normal; }
+.dreamdex-wordmark { color: #5d43c4; font-size: 14px; font-weight: 800; }
+.dreamdex-wordmark em { color: #6547d8; font-style: normal; }
+.eyebrow { display: flex; align-items: center; gap: 9px; }
+.eyebrow span { padding: 5px 8px; border-radius: 6px; background: #6547d8; color: #fff; }
+.intro-side { display: grid; gap: 18px; }
+.protocol-rail { display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; border: 1px solid #e3e5e9; border-radius: 12px; background: rgba(255,255,255,.76); }
+.protocol-rail span { display: grid; gap: 3px; padding: 10px; color: #444a54; font-size: 10px; font-weight: 700; }
+.protocol-rail span + span { border-left: 1px solid #e3e5e9; }
+.protocol-rail i { color: #6547d8; font-size: 8px; font-style: normal; }
+.campaign-toolbar > span { display: flex; align-items: center; gap: 7px; }
+.dex-glyph { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; background: #191b20; color: #d8ff58; font-style: normal; }
+.campaign-card { grid-template-rows: auto auto auto auto 1fr auto; }
+.contract-prices { display: grid; grid-template-columns: auto 1fr auto; gap: 9px; align-items: center; padding: 11px; border: 1px solid #e3e5e9; border-radius: 11px; background: #f7f8fa; }
+.price-side { display: grid; gap: 2px; min-width: 42px; }
+.price-side small { font-size: 8px; font-weight: 900; letter-spacing: .09em; }
+.price-side b { font-size: 14px; }
+.price-side.up { color: #087a4e; }
+.price-side.down { color: #b54444; text-align: right; }
+.price-track { height: 7px; overflow: hidden; border-radius: 999px; background: #efa9a9; }
+.price-track i { display: block; height: 100%; border-radius: inherit; background: #42b680; }
+.dreamdex-proof { margin-top: 18px; overflow: hidden; border: 1px solid #2b2e35; border-radius: 15px; background: #17191e; color: #fff; box-shadow: 0 14px 34px rgba(20,22,26,.14); }
+.dreamdex-proof > header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 18px; border-bottom: 1px solid #30333b; }
+.dreamdex-proof > header > div { display: flex; align-items: center; gap: 11px; }
+.proof-logo { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 9px; background: #d8ff58; color: #17191e; font-size: 17px; }
+.dreamdex-proof header b { display: block; font-size: 13px; }
+.dreamdex-proof header small { display: block; margin-top: 3px; color: #aeb2ba; font-size: 10px; }
+.sync-status { display: flex; align-items: center; gap: 7px; color: #c9f6de; font-size: 10px; font-weight: 800; }
+.sync-status i, .dreamdex-proof footer > span > i { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: #42d58b; box-shadow: 0 0 0 4px rgba(66,213,139,.12); }
+.proof-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.proof-grid > div { min-width: 0; display: grid; gap: 5px; padding: 16px 18px; }
+.proof-grid > div + div { border-left: 1px solid #30333b; }
+.proof-grid span { color: #858b95; text-transform: uppercase; letter-spacing: .08em; font-size: 8px; font-weight: 800; }
+.proof-grid b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.proof-grid small { color: #aeb2ba; font-size: 9px; }
+.dreamdex-proof > footer { width: auto; margin: 0; padding: 11px 18px; display: flex; justify-content: space-between; align-items: center; gap: 14px; border-top: 1px solid #30333b; color: #aeb2ba; text-transform: none; letter-spacing: 0; font-size: 9px; }
+.dreamdex-proof footer > span { display: flex; align-items: center; gap: 8px; }
+.dreamdex-proof footer code { color: #d7dae0; }
+.dreamdex-proof footer > div { display: flex; gap: 8px; }
+.dreamdex-proof footer button, .dreamdex-proof footer a { border: 1px solid #414650; border-radius: 8px; background: #24272e; color: #fff; padding: 8px 10px; font-size: 9px; font-weight: 800; text-decoration: none; cursor: pointer; }
+.dreamdex-proof footer a { border-color: #d8ff58; background: #d8ff58; color: #17191e; }
+@media (max-width: 640px) {
+  .dreamdex-wordmark, .brand > i { display: none; }
+  .protocol-rail { grid-template-columns: 1fr; }
+  .protocol-rail span + span { border-left: 0; border-top: 1px solid #e3e5e9; }
+  .dreamdex-proof > header, .dreamdex-proof > footer { align-items: flex-start; flex-direction: column; }
+  .proof-grid { grid-template-columns: 1fr 1fr; }
+  .proof-grid > div:nth-child(3) { border-left: 0; }
+  .proof-grid > div:nth-child(n+3) { border-top: 1px solid #30333b; }
+}
