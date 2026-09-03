@@ -1,0 +1,7 @@
+node_modules
+.next
+*.zip
+contracts/lib
+contracts/cache
+contracts/out
+docs/*.png

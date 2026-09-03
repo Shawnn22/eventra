@@ -1,0 +1,31 @@
+{
+  "name": "dream-pilot",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.5.1",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.69",
+    "@somnia-chain/markets-sdk": "^0.25.0",
+    "ai": "^6.0.261",
+    "next": "^16.3.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "viem": "^2.55.19",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "^5.2.0",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "solc": "^0.8.28",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  }
+}

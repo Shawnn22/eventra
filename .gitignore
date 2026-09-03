@@ -1,0 +1,24 @@
+.next/
+/.next*/
+node_modules/
+.env*
+!.env.example
+*.log
+*.tsbuildinfo
+.DS_Store
+.vercel
+
+# Local handoff and review artifacts
+/*.zip
+/*.png
+/AGENTS.md
+/CLAUDE.md
+/GROK_*
+/docs/GROK_*
+
+# Foundry dependencies and generated artifacts
+/contracts/lib/
+/contracts/out/
+/contracts/cache/
+/contracts/broadcast/
+/contracts/.env*
