@@ -624,9 +624,17 @@ export function DreamPilotApp() {
       })
       .catch((marketError) => {
         if (controller.signal.aborted) return;
-        setMarketState("error");
-        setMarkets([]);
-        setError(marketError instanceof Error ? marketError.message : "DreamDEX API unavailable.");
+        const message = marketError instanceof Error ? marketError.message : "DreamDEX API unavailable.";
+        setLiveMarkets((current) => {
+          if (current.length > 0) {
+            setMarketState("live");
+            setError("DreamDEX connection interrupted. Showing the last verified snapshot while reconnecting.");
+          } else {
+            setMarketState("error");
+            setError(message);
+          }
+          return current;
+        });
       });
 
     return () => controller.abort();
