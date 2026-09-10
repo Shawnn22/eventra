@@ -40,7 +40,7 @@ The app automatically scans for eligible DreamDEX campaigns. When none are open,
 
 ## DreamDEX and Somnia integration
 
-- DreamDEX SDK: `@somnia-chain/markets-sdk` `0.25.x`.
+- DreamDEX SDK: `@somnia-chain/markets-sdk` `0.28.0`.
 - Network: Somnia Shannon testnet, chain ID `50312`.
 - Event Contract data: DreamDEX indexer plus on-chain market verification.
 - HTTP RPC: `https://dream-rpc.somnia.network/`.

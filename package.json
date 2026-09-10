@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.69",
-    "@somnia-chain/markets-sdk": "^0.25.0",
+    "@somnia-chain/markets-sdk": "0.28.0",
     "ai": "^6.0.261",
     "next": "^16.3.2",
     "react": "^19.2.8",

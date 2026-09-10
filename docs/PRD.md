@@ -22,7 +22,7 @@ Prediction-market users can ask AI for a trade opinion, but most demos hide whet
 
 ## P0 acceptance criteria
 
-- The app lists only non-expired markets from `@somnia-chain/markets-sdk` 0.25.x.
+- The app lists only non-expired markets from `@somnia-chain/markets-sdk` 0.28.0 across the configured and standard fallback DreamDEX venues.
 - Market probability, volume, trade count and expiry are derived from the selected SDK row.
 - Missing market price is labelled and forces the advisor to `WAIT`.
 - User can choose one of five currently verified OpenRouter free routes.
