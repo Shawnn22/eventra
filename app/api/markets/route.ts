@@ -32,6 +32,7 @@ export async function GET(request: Request) {
           network: "Somnia Shannon testnet",
           chainId: DREAMDEX_TESTNET.chainId,
           venueId: DREAMDEX_TESTNET.venueId,
+          fallbackVenueId: DREAMDEX_TESTNET.fallbackVenueId,
           fetchedAt: new Date().toISOString(),
           latencyMs: Date.now() - startedAt,
           diagnostics: scan.diagnostics,
@@ -41,16 +42,21 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error("DreamDEX market read error", error);
+    const rawError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    const retryable = /fetch failed|enotfound|econnreset|etimedout|network/i.test(rawError);
     return Response.json(
       {
-        error: "Unable to read DreamDEX Event Contracts on testnet.",
+        error: retryable
+          ? "DreamDEX is temporarily unreachable. Eventra will retry automatically."
+          : "Unable to read DreamDEX Event Contracts on testnet.",
         meta: {
           mode: "unavailable",
           source: "DreamDEX Event Contracts SDK",
+          retryable,
           latencyMs: Date.now() - startedAt,
         },
       },
-      { status: 502, headers: { "Cache-Control": "no-store" } },
+      { status: retryable ? 503 : 502, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

@@ -17,7 +17,14 @@ export const DREAMDEX_TESTNET = {
   venueId:
     process.env.DREAMDEX_VENUE_ID ??
     "0x1a1e6821cde7d0159c0d293177871e09677b4e42307c7db3ba94f8648a5a050f",
+  fallbackVenueId:
+    process.env.DREAMDEX_FALLBACK_VENUE_ID ??
+    "0x679795a0195a1b76cdebb7c51d74e058aee92919b8c3389af86ef24535e8a28c",
 } as const;
+
+export const DREAMDEX_TESTNET_VENUE_IDS = [
+  ...new Set([DREAMDEX_TESTNET.venueId, DREAMDEX_TESTNET.fallbackVenueId]),
+];
 
 export type DreamDexMarketSnapshot = {
   marketId: string;
@@ -35,6 +42,10 @@ export type DreamDexMarketSnapshot = {
   lastTradeAt: string | null;
 };
 
+const INDEXER_READ_ATTEMPTS = 3;
+const LAST_GOOD_SCAN_TTL_MS = 120_000;
+let lastGoodScan: { markets: DreamDexMarketSnapshot[]; cachedAt: number } | null = null;
+
 const horizonBySeconds: Record<number, DreamDexMarketSnapshot["horizon"]> = {
   60: "1m",
   300: "5m",
@@ -45,7 +56,7 @@ const horizonBySeconds: Record<number, DreamDexMarketSnapshot["horizon"]> = {
   14400: "4h",
 };
 
-function toSnapshot(market: BinaryMarket): DreamDexMarketSnapshot | null {
+function toSnapshot(market: BinaryMarket, queriedVenueId: string): DreamDexMarketSnapshot | null {
   const asset = market.asset.toUpperCase();
   const intervalSec = Number(market.intervalSec);
   const horizon = horizonBySeconds[intervalSec];
@@ -57,7 +68,7 @@ function toSnapshot(market: BinaryMarket): DreamDexMarketSnapshot | null {
   return {
     marketId: market.marketId,
     poolAddress: market.poolAddress,
-    venueId: market.venueId ?? DREAMDEX_TESTNET.venueId,
+    venueId: market.venueId ?? queriedVenueId,
     asset,
     question: market.question,
     horizon,
@@ -97,19 +108,79 @@ export async function fetchDreamDexMarkets(filters: {
     signal: filters.signal,
   });
 
-  const rows = await exchange.client.listBinaryMarkets({
-    venueId: DREAMDEX_TESTNET.venueId,
-    status: "Trading",
-    orderBy: "newest",
-    asset: filters.asset,
-    intervalSec: Number.isFinite(intervalSec) ? intervalSec : undefined,
-    limit: 20,
-  });
+  const listVenueMarkets = async (venueId: string) => {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= INDEXER_READ_ATTEMPTS; attempt += 1) {
+      try {
+        return await exchange.client.listBinaryMarkets({
+          venueId,
+          status: "Trading",
+          orderBy: "newest",
+          asset: filters.asset,
+          intervalSec: Number.isFinite(intervalSec) ? intervalSec : undefined,
+          limit: 20,
+        });
+      } catch (error) {
+        lastError = error;
+        if (filters.signal?.aborted || attempt === INDEXER_READ_ATTEMPTS) break;
+        await new Promise((resolve) => setTimeout(resolve, attempt * 350));
+      }
+    }
+    throw lastError ?? new Error(`DreamDEX venue ${venueId} could not be read.`);
+  };
 
+  const readLastGoodScan = (reason: "indexer_unavailable" | "rpc_unavailable") => {
+    if (!lastGoodScan || Date.now() - lastGoodScan.cachedAt > LAST_GOOD_SCAN_TTL_MS) return null;
+    const markets = lastGoodScan.markets.filter(
+      (market) => new Date(market.expiry).getTime() > Date.now(),
+    );
+    if (markets.length === 0) return null;
+    return {
+      markets,
+      diagnostics: {
+        indexedTradingMarkets: 0,
+        supportedOpenMarkets: markets.length,
+        onchainVerifiedMarkets: markets.length,
+        queriedVenueIds: DREAMDEX_TESTNET_VENUE_IDS,
+        failedVenueScans: DREAMDEX_TESTNET_VENUE_IDS.length,
+        verificationFailures: 0,
+        rejectedByOnchainState: 0,
+        freshness: "last_good" as const,
+        staleAgeMs: Date.now() - lastGoodScan.cachedAt,
+        fallbackReason: reason,
+      },
+    };
+  };
+
+  const venueScans = await Promise.allSettled(
+    DREAMDEX_TESTNET_VENUE_IDS.map(async (venueId) => ({
+      venueId,
+      rows: await listVenueMarkets(venueId),
+    })),
+  );
+  const successfulScans = venueScans.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
+  if (successfulScans.length === 0) {
+    const cached = readLastGoodScan("indexer_unavailable");
+    if (cached) return cached;
+    const failure = venueScans.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    throw failure?.reason ?? new Error("DreamDEX venue scans failed.");
+  }
+
+  const rows = successfulScans.flatMap(({ venueId, rows: venueRows }) =>
+    venueRows.map((market) => ({ market, queriedVenueId: venueId })),
+  );
   const snapshots = rows
-    .map(toSnapshot)
+    .map(({ market, queriedVenueId }) => toSnapshot(market, queriedVenueId))
     .filter((market): market is DreamDexMarketSnapshot => Boolean(market))
-    .filter((market) => market.minutesRemaining > 0);
+    .filter((market) => market.minutesRemaining > 0)
+    .filter(
+      (market, index, all) =>
+        all.findIndex((candidate) => candidate.marketId === market.marketId) === index,
+    );
 
   // The indexer can briefly lag behind the canonical market registry. Never
   // surface a campaign as tradable until its pool, collateral, status and
@@ -146,14 +217,23 @@ export async function fetchDreamDexMarkets(filters: {
   const markets = verified.flatMap((result) =>
     result.status === "fulfilled" && result.value ? [result.value] : [],
   );
+  if (markets.length === 0 && verified.some((result) => result.status === "rejected")) {
+    const cached = readLastGoodScan("rpc_unavailable");
+    if (cached) return cached;
+  }
+  if (markets.length > 0) lastGoodScan = { markets, cachedAt: Date.now() };
   return {
     markets,
     diagnostics: {
       indexedTradingMarkets: rows.length,
       supportedOpenMarkets: snapshots.length,
       onchainVerifiedMarkets: markets.length,
+      queriedVenueIds: DREAMDEX_TESTNET_VENUE_IDS,
+      failedVenueScans: venueScans.filter((result) => result.status === "rejected").length,
       verificationFailures: verified.filter((result) => result.status === "rejected").length,
       rejectedByOnchainState: verified.filter((result) => result.status === "fulfilled" && !result.value).length,
+      freshness: "live" as const,
+      staleAgeMs: 0,
     },
   };
 }
