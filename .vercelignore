@@ -5,3 +5,6 @@ contracts/lib
 contracts/cache
 contracts/out
 docs/*.png
+assets/
+docs/*.docx
+docs/build_*.py
