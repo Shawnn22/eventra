@@ -70,8 +70,8 @@ export async function fetchUserPositions(account: Address): Promise<UserPosition
     if (pnl) {
       current.costBasisRaw = pnl.costBasis.toString();
       current.avgCostRaw = pnl.avgCost.toString();
-      current.markValueRaw = pnl.markValue.toString();
-      current.unrealizedPnlRaw = pnl.unrealizedPnl.toString();
+      current.markValueRaw = (pnl.markValue ?? 0n).toString();
+      current.unrealizedPnlRaw = (pnl.unrealizedPnl ?? 0n).toString();
     }
     grouped.set(market.id, current);
   }
