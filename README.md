@@ -1,6 +1,22 @@
 # Eventra
 
-Eventra is an AI decision and execution copilot for DreamDEX Event Contracts on Somnia. It helps a user discover a campaign, choose an AI analyst, understand the evidence behind an UP/DOWN/WAIT decision, and retain wallet control over every on-chain action.
+Eventra is an AI decision and execution copilot for DreamDEX on Somnia. The repository contains two connected product surfaces:
+
+- **Event Contracts** — AI-assisted UP/DOWN/WAIT research and wallet-controlled execution.
+- **Perps** — live market evidence, position-risk simulation, wallet execution and partial/full position closing.
+
+The Perps bounty demo is available at [`/perps`](https://evantra-ai.vercel.app/perps).
+
+## DreamDEX Perps bounty flow
+
+`Live market → AI decision brief → Risk simulation → On-chain preflight → Open position → Monitor PnL → Close 25% / 50% / all`
+
+- Network: **Hideki Testnet**, chain ID `50383`.
+- SDK: `@somnia-chain/markets-sdk` `0.32.1`.
+- Markets: live DreamDEX Perps indexed from the official Hideki v2 endpoint.
+- Collateral: wallet USDso with STT used for gas.
+- Execution remains non-custodial: Eventra never signs or submits an order without the connected wallet.
+- Close requests refetch the position, cap quantity to the current size, check executable liquidity and simulate the exact calldata before opening the wallet.
 
 ## Why it exists
 
@@ -40,7 +56,7 @@ The app automatically scans for eligible DreamDEX campaigns. When none are open,
 
 ## DreamDEX and Somnia integration
 
-- DreamDEX SDK: `@somnia-chain/markets-sdk` `0.28.0`.
+- DreamDEX SDK: `@somnia-chain/markets-sdk` `0.32.1`.
 - Network: Somnia Shannon testnet, chain ID `50312`.
 - Event Contract data: DreamDEX indexer plus on-chain market verification.
 - HTTP RPC: `https://dream-rpc.somnia.network/`.
@@ -69,12 +85,15 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+Open `http://localhost:3000/perps` for the DreamDEX Perps bounty demo.
+
 Eventra Core and Test Arena work without paid AI credentials. Configure only the integrations you intend to demonstrate.
 
 ## Verification
 
 ```bash
 npm run typecheck
+npm run test:perps
 npm run build
 cd contracts && forge test
 ```
@@ -82,6 +101,7 @@ cd contracts && forge test
 ## Submission material
 
 - [DoraHacks submission guide](docs/SUBMISSION_GUIDE.md)
+- [DreamDEX Perps submission pack](docs/PERPS_SUBMISSION.md)
 - [90-second judge demo script](docs/DEMO_SCRIPT.md)
 - [Revenue model](docs/EVENTRA_REVENUE_MODEL.md)
 - [Contract documentation](contracts/README.md)
