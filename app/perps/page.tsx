@@ -55,8 +55,9 @@ function chartPath(candles: NonNullable<PerpsMarket["candles"]>) {
   const low = Math.min(...candles.map(candle => candle.low), ...bandValues);
   const high = Math.max(...candles.map(candle => candle.high), ...bandValues);
   const spread = high - low || 1;
-  const xAt = (index: number) => (index + .5) / values.length * 900;
-  const yAt = (value: number) => 205 - (value - low) / spread * 155;
+  const plotWidth = 824;
+  const xAt = (index: number) => (index + .5) / values.length * plotWidth;
+  const yAt = (value: number) => 174 - (value - low) / spread * 148;
   const point = (value: number, index: number) => {
     const x = xAt(index);
     const y = yAt(value);
@@ -65,7 +66,8 @@ function chartPath(candles: NonNullable<PerpsMarket["candles"]>) {
   const path = (series: number[]) => `M${series.map(point).join(" L")}`;
   const upper = bands.map((band, index) => band ? point(band.upper, index) : null).filter((value): value is string => Boolean(value));
   const lower = bands.map((band, index) => band ? point(band.lower, index) : null).filter((value): value is string => Boolean(value));
-  const candleWidth = Math.max(5, Math.min(18, 900 / values.length * .58));
+  const candleWidth = Math.max(5, Math.min(18, plotWidth / values.length * .58));
+  const maxVolume = Math.max(...candles.map(candle => candle.volume), 1);
   const candleGeometry = candles.map((candle, index) => {
     const openY = yAt(candle.open);
     const closeY = yAt(candle.close);
@@ -75,11 +77,18 @@ function chartPath(candles: NonNullable<PerpsMarket["candles"]>) {
       lowY: yAt(candle.low),
       bodyY: Math.min(openY, closeY),
       bodyHeight: Math.max(2, Math.abs(closeY - openY)),
+      closeY,
       width: candleWidth,
+      volumeY: 230 - candle.volume / maxVolume * 30,
+      volumeHeight: Math.max(1, candle.volume / maxVolume * 30),
       direction: candle.close >= candle.open ? "up" : "down",
     };
   });
-  return { candles: candleGeometry, ema9: path(ema9), ema21: path(ema21), upper: upper.length > 1 ? `M${upper.join(" L")}` : null, lower: lower.length > 1 ? `M${lower.join(" L")}` : null, low, high };
+  const priceTicks = Array.from({ length: 5 }, (_, index) => {
+    const value = high - spread / 4 * index;
+    return { value, y: yAt(value) };
+  });
+  return { candles: candleGeometry, ema9: path(ema9), ema21: path(ema21), upper: upper.length > 1 ? `M${upper.join(" L")}` : null, lower: lower.length > 1 ? `M${lower.join(" L")}` : null, priceTicks, currentY: yAt(values.at(-1) ?? low), plotWidth, low, high };
 }
 
 function rsiPath(candles: NonNullable<PerpsMarket["candles"]>) {
@@ -122,6 +131,7 @@ export default function PerpsWorkspace() {
   const [geminiDecision, setGeminiDecision] = useState<PerpsAIDecision | null>(null);
   const [aiMeta, setAiMeta] = useState<{ provider: "gemini" | "local"; model: string; latencyMs: number; fallbackReason?: string } | null>(null);
   const [aiState, setAiState] = useState<"loading" | "ready">("loading");
+  const [hoveredCandleIndex, setHoveredCandleIndex] = useState<number | null>(null);
   const market = markets[marketIndex];
   const direction = side === "LONG" ? 1 : -1;
   const stopLoss = market.price * (1 - direction * 0.018);
@@ -138,6 +148,7 @@ export default function PerpsWorkspace() {
   const geometry = useMemo(() => chartPath(market.candles ?? []), [market.candles]);
   const technical = useMemo(() => calculatePerpsTechnicalSnapshot(market.candles ?? []), [market.candles]);
   const rsiGeometry = useMemo(() => rsiPath(market.candles ?? []), [market.candles]);
+  const hoveredCandle = hoveredCandleIndex === null ? null : market.candles?.[hoveredCandleIndex] ?? null;
   const candleVolume = useMemo(() => (market.candles ?? []).reduce((sum, candle) => sum + candle.volume, 0), [market.candles]);
   const firstClose = market.candles?.[0]?.close ?? market.price;
   const trendUp = market.price >= firstClose;
@@ -427,8 +438,9 @@ export default function PerpsWorkspace() {
           <div className="perps-chart" aria-label={`${market.symbol} live one-minute candlestick chart`}>
             <div className="perps-chart-label"><span>MARK PRICE · 1M OHLCV</span><strong>{money(market.price)}</strong></div>
             <div className="perps-chart-legend"><span className="bull">UP CANDLE</span><span className="bear">DOWN CANDLE</span><span className="fast">EMA 9</span><span className="slow">EMA 21</span><span className="bands">BOLLINGER 20,2</span></div>
-            <svg viewBox="0 0 900 250" preserveAspectRatio="none" role="img">
-              {geometry ? <>{geometry.upper && <path className="chart-band" d={geometry.upper} />}{geometry.lower && <path className="chart-band" d={geometry.lower} />}{geometry.candles.map((candle, index) => <g className={`chart-candle ${candle.direction}`} key={`${market.symbol}-${index}`}><line x1={candle.x} x2={candle.x} y1={candle.highY} y2={candle.lowY}/><rect x={candle.x - candle.width / 2} y={candle.bodyY} width={candle.width} height={candle.bodyHeight} rx="1"/></g>)}<path className="chart-ema-fast" d={geometry.ema9} /><path className="chart-ema-slow" d={geometry.ema21} /></> : <text x="450" y="135" textAnchor="middle" className="chart-empty">Waiting for indexed fills</text>}
+            {hoveredCandle && <div className="perps-chart-tooltip" style={{ left: `${Math.min(72, Math.max(2, (hoveredCandleIndex ?? 0) / Math.max(1, (market.candles?.length ?? 1) - 1) * 78))}%` }}><span>{new Date(hoveredCandle.time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span><b>O {money(hoveredCandle.open)} · H {money(hoveredCandle.high)}</b><b>L {money(hoveredCandle.low)} · C {money(hoveredCandle.close)}</b><small>VOL {money(hoveredCandle.volume, 0)} · {hoveredCandle.trades} fills</small></div>}
+            <svg viewBox="0 0 900 250" preserveAspectRatio="none" role="img" onMouseLeave={() => setHoveredCandleIndex(null)} onMouseMove={event => { const candleCount = market.candles?.length ?? 0; if (!candleCount) return; const bounds = event.currentTarget.getBoundingClientRect(); const ratio = Math.max(0, Math.min(.915, (event.clientX - bounds.left) / bounds.width)); setHoveredCandleIndex(Math.min(candleCount - 1, Math.floor(ratio / .915 * candleCount))); }}>
+              {geometry ? <><g className="chart-grid">{geometry.priceTicks.map(tick => <g key={tick.value}><line x1="0" x2={geometry.plotWidth} y1={tick.y} y2={tick.y}/><text x="892" y={tick.y + 4} textAnchor="end">{money(tick.value)}</text></g>)}</g>{geometry.upper && <path className="chart-band" d={geometry.upper} />}{geometry.lower && <path className="chart-band" d={geometry.lower} />}{geometry.candles.map((candle, index) => <g className={`chart-candle ${candle.direction}${hoveredCandleIndex === index ? " active" : ""}`} key={`${market.symbol}-${index}`}><rect className="chart-volume" x={candle.x - candle.width / 2} y={candle.volumeY} width={candle.width} height={candle.volumeHeight} rx="1"/><line x1={candle.x} x2={candle.x} y1={candle.highY} y2={candle.lowY}/><rect className="chart-body" x={candle.x - candle.width / 2} y={candle.bodyY} width={candle.width} height={candle.bodyHeight} rx="1"/></g>)}<path className="chart-ema-fast" d={geometry.ema9} /><path className="chart-ema-slow" d={geometry.ema21} /><line className="chart-current-line" x1="0" x2={geometry.plotWidth} y1={geometry.currentY} y2={geometry.currentY}/><g className="chart-current-badge"><rect x="836" y={geometry.currentY - 10} width="62" height="20" rx="5"/><text x="867" y={geometry.currentY + 4} textAnchor="middle">LIVE</text></g>{hoveredCandleIndex !== null && geometry.candles[hoveredCandleIndex] && <g className="chart-crosshair"><line x1={geometry.candles[hoveredCandleIndex].x} x2={geometry.candles[hoveredCandleIndex].x} y1="18" y2="230"/><circle cx={geometry.candles[hoveredCandleIndex].x} cy={geometry.candles[hoveredCandleIndex].closeY} r="4"/></g>}<text className="chart-volume-label" x="0" y="194">VOLUME</text></> : <text x="450" y="135" textAnchor="middle" className="chart-empty">Waiting for indexed fills</text>}
             </svg>
             <div className="perps-chart-foot"><span>{market.candles?.[0] ? new Date(market.candles[0].time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "30m window"}</span><span>{geometry ? `Range ${money(geometry.low)}–${money(geometry.high)}` : "Live indexer"}</span><span>Now</span></div>
           </div>
