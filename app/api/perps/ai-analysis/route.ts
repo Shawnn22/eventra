@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { buildPerpsAIDecision, type PerpsAIDecision, type PerpsAIInput } from "@/lib/perps/ai-decision";
+import { calculatePerpsTechnicalSnapshot } from "@/lib/perps/technical-indicators";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -78,12 +79,13 @@ function localResponse(input: PerpsAIInput, reason: string, startedAt: number) {
 function buildPrompt(input: PerpsAIInput, baseline: PerpsAIDecision) {
   const closes = input.candles.map(candle => candle.close);
   const lastFive = closes.slice(-5);
-  return `You are Eventra's cautious DreamDEX perpetual-market analyst. Analyze only the supplied public market snapshot. Do not invent news, order-book depth, wallet state, support/resistance, or future prices. Return WAIT when evidence is weak or contradictory. The deterministic risk engine remains authoritative and the user must sign every transaction manually. Use concise English.\n\nMARKET SNAPSHOT:\n${JSON.stringify({ ...input, candles: input.candles.slice(-30), lastFiveCloses: lastFive })}\n\nDETERMINISTIC BASELINE:\n${JSON.stringify(baseline)}\n\nYour decision may disagree with the baseline only when you explicitly reflect that uncertainty through lower confidence and a concrete counter-thesis. Invalidation must be testable using price, funding, activity, or liquidity evidence present in the snapshot.`;
+  const technical = calculatePerpsTechnicalSnapshot(input.candles);
+  return `You are Eventra's cautious DreamDEX perpetual-market analyst. Analyze only the supplied public market snapshot and deterministic technical record. Do not recalculate or alter the supplied indicators. Do not invent news, order-book depth, wallet state, support/resistance, or future prices. Return WAIT when evidence is weak or contradictory. The deterministic risk engine remains authoritative and the user must sign every transaction manually. Use concise English. Every driver must cite at least one supplied metric.\n\nMARKET SNAPSHOT:\n${JSON.stringify({ ...input, candles: input.candles.slice(-30), lastFiveCloses: lastFive })}\n\nDETERMINISTIC TECHNICAL RECORD:\n${JSON.stringify(technical)}\n\nDETERMINISTIC BASELINE:\n${JSON.stringify(baseline)}\n\nYour decision may disagree with the baseline only when you explicitly reflect that uncertainty through lower confidence and a concrete counter-thesis. Invalidation must use a supplied price level or indicator threshold.`;
 }
 
 export async function GET() {
   const configured = Boolean(process.env.GEMINI_API_KEY?.trim());
-  return Response.json({ configured, provider: configured ? "Gemini" : "Eventra local fallback", model: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite" }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ configured, provider: configured ? "Gemini" : "Eventra local fallback", model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite" }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return localResponse(input, "GEMINI_API_KEY is not configured.", startedAt);
 
-  const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash-lite";
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
   const key = createHash("sha256").update(JSON.stringify({ model, input })).digest("hex");
   const cached = cache.get(key);
   if (cached && cached.expiresAt > Date.now()) {

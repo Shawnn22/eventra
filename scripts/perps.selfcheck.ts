@@ -6,6 +6,7 @@ import { runPerpsPreflight } from "../lib/perps/browser-preflight";
 import { buildPerpsAIDecision } from "../lib/perps/ai-decision";
 import { formatPerpsWalletError } from "../lib/perps/wallet-error";
 import { buildPerpsClosePlan } from "../lib/perps/browser-close";
+import { calculatePerpsTechnicalSnapshot } from "../lib/perps/technical-indicators";
 
 const HIDEKI_INDEXER = "https://hideki-dev.smk.somnia.host/v1/graphql";
 const EMPTY_ACCOUNT = "0x0000000000000000000000000000000000000001" as const;
@@ -54,6 +55,11 @@ assert.equal(aiLong.side, "LONG");
 assert.ok(aiLong.confidence >= 52);
 assert.equal(aiLong.drivers.length, 3);
 assert.match(aiLong.invalidation, /Reassess/);
+const technical = calculatePerpsTechnicalSnapshot(Array.from({ length: 30 }, (_, index) => ({ open: 100 + index, high: 101.5 + index, low: 99.5 + index, close: 101 + index, volume: 10 + index, trades: 1 })));
+assert.equal(technical.regime, "TRENDING_UP");
+assert.ok(technical.ema9 > technical.ema21);
+assert.ok(technical.rsi14 > 70);
+assert.ok(technical.resistance > technical.support);
 assert.match(formatPerpsWalletError(Object.assign(new Error("User rejected the request"), { code: 4001 }), "signing"), /Resume/);
 
 const closeLong = buildPerpsClosePlan({ signedSize: 20_000n, percentage: 50, lotSize: 10_000n, markPrice: 8_166_649n, tickSize: 10n });
@@ -94,6 +100,7 @@ async function main() {
       liveOhlcv: `${candles.length} candles`,
       failClosedPreflight: "pass",
       aiDecision: "pass",
+      technicalIndicators: "pass",
       walletErrorRecovery: "pass",
       reduceOnlyClosePlan: "pass",
       market: preflight.market,

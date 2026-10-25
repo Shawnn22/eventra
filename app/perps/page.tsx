@@ -8,6 +8,7 @@ import { readPerpsWalletBalance, type PerpsWalletBalance } from "../../lib/perps
 import { buildPerpsAIDecision, type PerpsAIDecision } from "../../lib/perps/ai-decision";
 import { formatPerpsWalletError } from "../../lib/perps/wallet-error";
 import { closePerpsPosition } from "../../lib/perps/browser-close";
+import { bollingerSeries, calculatePerpsTechnicalSnapshot, emaSeries } from "../../lib/perps/technical-indicators";
 import { usePerpsWallet } from "../../hooks/use-perps-wallet";
 import type { Address } from "viem";
 import "./perps.css";
@@ -47,15 +48,34 @@ const preflightReasonCopy: Record<string, string> = {
 function chartPath(candles: NonNullable<PerpsMarket["candles"]>) {
   const values = candles.map(candle => candle.close);
   if (values.length < 2) return null;
-  const low = Math.min(...candles.map(candle => candle.low));
-  const high = Math.max(...candles.map(candle => candle.high));
+  const ema9 = emaSeries(values, 9);
+  const ema21 = emaSeries(values, 21);
+  const bands = bollingerSeries(values);
+  const bandValues = bands.flatMap(band => band ? [band.upper, band.lower] : []);
+  const low = Math.min(...candles.map(candle => candle.low), ...bandValues);
+  const high = Math.max(...candles.map(candle => candle.high), ...bandValues);
   const spread = high - low || 1;
-  const points = values.map((value, index) => {
+  const point = (value: number, index: number) => {
     const x = index / (values.length - 1) * 900;
     const y = 205 - (value - low) / spread * 155;
     return `${x.toFixed(1)} ${y.toFixed(1)}`;
+  };
+  const points = values.map(point);
+  const path = (series: number[]) => `M${series.map(point).join(" L")}`;
+  const upper = bands.map((band, index) => band ? point(band.upper, index) : null).filter((value): value is string => Boolean(value));
+  const lower = bands.map((band, index) => band ? point(band.lower, index) : null).filter((value): value is string => Boolean(value));
+  return { line: `M${points.join(" L")}`, area: `M${points.join(" L")} L900 230 L0 230 Z`, ema9: path(ema9), ema21: path(ema21), upper: upper.length > 1 ? `M${upper.join(" L")}` : null, lower: lower.length > 1 ? `M${lower.join(" L")}` : null, low, high };
+}
+
+function rsiPath(candles: NonNullable<PerpsMarket["candles"]>) {
+  if (candles.length < 15) return null;
+  const points = candles.slice(14).map((_, offset) => {
+    const value = calculatePerpsTechnicalSnapshot(candles.slice(0, offset + 15)).rsi14;
+    const x = offset / Math.max(1, candles.length - 15) * 900;
+    const y = 92 - value / 100 * 72;
+    return `${x.toFixed(1)} ${y.toFixed(1)}`;
   });
-  return { line: `M${points.join(" L")}`, area: `M${points.join(" L")} L900 230 L0 230 Z`, low, high };
+  return `M${points.join(" L")}`;
 }
 
 export default function PerpsWorkspace() {
@@ -101,6 +121,8 @@ export default function PerpsWorkspace() {
     takeProfit,
   }), [side, market, collateral, leverage, stopLoss, takeProfit]);
   const geometry = useMemo(() => chartPath(market.candles ?? []), [market.candles]);
+  const technical = useMemo(() => calculatePerpsTechnicalSnapshot(market.candles ?? []), [market.candles]);
+  const rsiGeometry = useMemo(() => rsiPath(market.candles ?? []), [market.candles]);
   const candleVolume = useMemo(() => (market.candles ?? []).reduce((sum, candle) => sum + candle.volume, 0), [market.candles]);
   const firstClose = market.candles?.[0]?.close ?? market.price;
   const trendUp = market.price >= firstClose;
@@ -389,11 +411,25 @@ export default function PerpsWorkspace() {
           <div className={`perps-ai-status ${aiMeta?.provider === "gemini" ? "live" : "local"}`}><i /><b>{aiMeta?.provider === "gemini" ? "Gemini analysis verified" : aiState === "loading" ? "Requesting Gemini analysis…" : "Deterministic fallback active"}</b><span>{aiMeta ? `${aiMeta.latencyMs} ms · AI advises only; wallet confirmation remains required.` : "Market snapshot is being analyzed server-side."}</span></div>
           <div className="perps-chart" aria-label={`${market.symbol} live one-minute price chart`}>
             <div className="perps-chart-label"><span>MARK PRICE · 1M OHLCV</span><strong>{money(market.price)}</strong></div>
+            <div className="perps-chart-legend"><span className="price">PRICE</span><span className="fast">EMA 9</span><span className="slow">EMA 21</span><span className="bands">BOLLINGER 20,2</span></div>
             <svg viewBox="0 0 900 250" preserveAspectRatio="none" role="img">
               <defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7657ff" stopOpacity=".34"/><stop offset="100%" stopColor="#7657ff" stopOpacity="0"/></linearGradient></defs>
-              {geometry ? <><path className="chart-area" d={geometry.area} /><path className="chart-line" d={geometry.line} /><line x1="0" x2="900" y1="128" y2="128" className="chart-dash" /></> : <text x="450" y="135" textAnchor="middle" className="chart-empty">Waiting for indexed fills</text>}
+              {geometry ? <><path className="chart-area" d={geometry.area} />{geometry.upper && <path className="chart-band" d={geometry.upper} />}{geometry.lower && <path className="chart-band" d={geometry.lower} />}<path className="chart-ema-fast" d={geometry.ema9} /><path className="chart-ema-slow" d={geometry.ema21} /><path className="chart-line" d={geometry.line} /><line x1="0" x2="900" y1="128" y2="128" className="chart-dash" /></> : <text x="450" y="135" textAnchor="middle" className="chart-empty">Waiting for indexed fills</text>}
             </svg>
             <div className="perps-chart-foot"><span>{market.candles?.[0] ? new Date(market.candles[0].time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "30m window"}</span><span>{geometry ? `Range ${money(geometry.low)}–${money(geometry.high)}` : "Live indexer"}</span><span>Now</span></div>
+          </div>
+
+          <div className="perps-rsi-panel">
+            <div><span>RSI 14 · MOMENTUM</span><strong className={technical.rsi14 >= 70 ? "negative" : technical.rsi14 <= 30 ? "positive" : ""}>{technical.rsi14.toFixed(1)}</strong><small>{technical.rsi14 >= 70 ? "Overbought zone" : technical.rsi14 <= 30 ? "Oversold zone" : "Neutral momentum"}</small></div>
+            <svg viewBox="0 0 900 110" preserveAspectRatio="none" role="img" aria-label={`RSI 14 is ${technical.rsi14.toFixed(1)}`}><line x1="0" x2="900" y1="42" y2="42" className="rsi-threshold"/><line x1="0" x2="900" y1="70" y2="70" className="rsi-threshold"/>{rsiGeometry && <path d={rsiGeometry} className="rsi-line"/>}</svg>
+            <div className="perps-rsi-scale"><span>70</span><span>30</span></div>
+          </div>
+
+          <div className="perps-technical-grid">
+            <article><span>EMA STRUCTURE</span><strong className={technical.emaSpreadPct >= 0 ? "positive" : "negative"}>{technical.emaSpreadPct >= 0 ? "+" : ""}{technical.emaSpreadPct.toFixed(3)}%</strong><p>EMA 9 {technical.ema9 >= technical.ema21 ? "above" : "below"} EMA 21 · {technical.regime.replaceAll("_", " ").toLowerCase()}.</p></article>
+            <article><span>VOLATILITY · ATR 14</span><strong>{technical.atrPct.toFixed(3)}%</strong><p>{money(technical.atr14)} average true range per one-minute candle.</p></article>
+            <article><span>VOLUME CONFIRMATION</span><strong className={technical.volumeRatio >= 1 ? "positive" : ""}>{technical.volumeRatio.toFixed(2)}×</strong><p>Recent five-candle volume versus the preceding baseline.</p></article>
+            <article><span>PRICE LOCATION</span><strong>{(technical.bollingerPosition * 100).toFixed(0)}% of band</strong><p>Support {money(technical.support)} · resistance {money(technical.resistance)}.</p></article>
           </div>
 
           <div className="perps-evidence">
