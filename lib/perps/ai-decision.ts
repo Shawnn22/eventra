@@ -12,7 +12,7 @@ export type PerpsAIDecision = {
   invalidation: string;
 };
 
-export function buildPerpsAIDecision(input: {
+export type PerpsAIInput = {
   symbol: string;
   price: number;
   change: number;
@@ -20,7 +20,9 @@ export function buildPerpsAIDecision(input: {
   openInterest: number;
   tradeCount: number;
   candles: Candle[];
-}): PerpsAIDecision {
+};
+
+export function buildPerpsAIDecision(input: PerpsAIInput): PerpsAIDecision {
   const closes = input.candles.map(candle => candle.close).filter(Number.isFinite);
   const first = closes[0] ?? input.price;
   const momentum = first > 0 ? (input.price - first) / first * 100 : input.change;

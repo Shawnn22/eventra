@@ -5,7 +5,7 @@ import { calculatePerpsRisk, type PerpsSide } from "../../lib/perps/risk-engine"
 import { approvePerpsCollateral, depositPerpsMargin, executePerpsOrder, runPerpsPreflight, type PerpsPreflight } from "../../lib/perps/browser-preflight";
 import { readConnectedPerpsAccount, type PerpsAccountSnapshot } from "../../lib/perps/browser-account";
 import { readPerpsWalletBalance, type PerpsWalletBalance } from "../../lib/perps/browser-balance";
-import { buildPerpsAIDecision } from "../../lib/perps/ai-decision";
+import { buildPerpsAIDecision, type PerpsAIDecision } from "../../lib/perps/ai-decision";
 import { formatPerpsWalletError } from "../../lib/perps/wallet-error";
 import { closePerpsPosition } from "../../lib/perps/browser-close";
 import { usePerpsWallet } from "../../hooks/use-perps-wallet";
@@ -84,6 +84,9 @@ export default function PerpsWorkspace() {
   const [closePercentage, setClosePercentage] = useState<25 | 50 | 100>(100);
   const [closeState, setCloseState] = useState<"idle" | "checking" | "signing" | "confirmed" | "error">("idle");
   const [closeMessage, setCloseMessage] = useState("");
+  const [geminiDecision, setGeminiDecision] = useState<PerpsAIDecision | null>(null);
+  const [aiMeta, setAiMeta] = useState<{ provider: "gemini" | "local"; model: string; latencyMs: number; fallbackReason?: string } | null>(null);
+  const [aiState, setAiState] = useState<"loading" | "ready">("loading");
   const market = markets[marketIndex];
   const direction = side === "LONG" ? 1 : -1;
   const stopLoss = market.price * (1 - direction * 0.018);
@@ -101,7 +104,7 @@ export default function PerpsWorkspace() {
   const candleVolume = useMemo(() => (market.candles ?? []).reduce((sum, candle) => sum + candle.volume, 0), [market.candles]);
   const firstClose = market.candles?.[0]?.close ?? market.price;
   const trendUp = market.price >= firstClose;
-  const aiDecision = useMemo(() => buildPerpsAIDecision({
+  const aiInput = useMemo(() => ({
     symbol: market.symbol,
     price: market.price,
     change: market.change,
@@ -110,6 +113,8 @@ export default function PerpsWorkspace() {
     tradeCount: market.tradeCount ?? 0,
     candles: market.candles ?? [],
   }), [market]);
+  const localAiDecision = useMemo(() => buildPerpsAIDecision(aiInput), [aiInput]);
+  const aiDecision = geminiDecision ?? localAiDecision;
   const pipelineBusy = pipelineStage !== "idle";
 
   useEffect(() => {
@@ -125,6 +130,35 @@ export default function PerpsWorkspace() {
       .catch(() => active && setDataMode("demo"));
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setGeminiDecision(null);
+    setAiMeta(null);
+    setAiState("loading");
+    const timer = setTimeout(() => {
+      fetch("/api/perps/ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(aiInput),
+        signal: controller.signal,
+        cache: "no-store",
+      })
+        .then(response => response.ok ? response.json() : Promise.reject(new Error("AI analysis unavailable")))
+        .then(payload => {
+          if (!active || !payload?.decision) return;
+          setGeminiDecision(payload.decision);
+          setAiMeta(payload.meta ?? null);
+        })
+        .catch(error => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          if (active) setAiMeta({ provider: "local", model: "eventra-risk-engine", latencyMs: 0, fallbackReason: "AI endpoint unavailable" });
+        })
+        .finally(() => active && setAiState("ready"));
+    }, 250);
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [aiInput]);
 
   useEffect(() => {
     let active = true;
@@ -325,7 +359,7 @@ export default function PerpsWorkspace() {
           <p className="perps-subtitle">An evidence-first Perps workspace for dreamDEX—analysis, liquidation risk and execution in one decision surface.</p>
         </div>
         <div className="perps-verdict">
-          <span>AI VERDICT</span>
+          <span>{aiMeta?.provider === "gemini" ? "GEMINI LIVE VERDICT" : aiState === "loading" ? "AI ANALYZING" : "EVENTRA LOCAL VERDICT"}</span>
           <strong>{aiDecision.side}</strong>
           <div><b>{aiDecision.confidence}%</b> confidence · {aiDecision.quality.toLowerCase()} evidence</div>
         </div>
@@ -348,10 +382,11 @@ export default function PerpsWorkspace() {
             <div className={`perps-live ${dataMode}`}><i /> {dataMode === "live" ? "LIVE" : dataMode === "loading" ? "VERIFYING" : "DEMO DATA"}{updatedAt ? ` · ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</div>
           </div>
           <div className={`perps-ai-brief ${aiDecision.side.toLowerCase()}`}>
-            <div className="perps-ai-score"><span>EVENTRA AI DECISION</span><strong>{aiDecision.side}</strong><b>{aiDecision.confidence}%</b><small>{aiDecision.quality} EVIDENCE</small></div>
+            <div className="perps-ai-score"><span>{aiMeta?.provider === "gemini" ? "GEMINI · LIVE ANALYSIS" : aiState === "loading" ? "GEMINI · ANALYZING" : "EVENTRA · LOCAL FALLBACK"}</span><strong>{aiDecision.side}</strong><b>{aiDecision.confidence}%</b><small>{aiDecision.quality} EVIDENCE{aiMeta ? ` · ${aiMeta.model}` : ""}</small></div>
             <div className="perps-ai-thesis"><h3>{aiDecision.summary}</h3><ul>{aiDecision.drivers.map(driver => <li key={driver}>{driver}</li>)}</ul></div>
             <div className="perps-ai-risk"><span>COUNTER-THESIS</span><p>{aiDecision.counterThesis}</p><span>INVALIDATION</span><p>{aiDecision.invalidation}</p></div>
           </div>
+          <div className={`perps-ai-status ${aiMeta?.provider === "gemini" ? "live" : "local"}`}><i /><b>{aiMeta?.provider === "gemini" ? "Gemini analysis verified" : aiState === "loading" ? "Requesting Gemini analysis…" : "Deterministic fallback active"}</b><span>{aiMeta ? `${aiMeta.latencyMs} ms · AI advises only; wallet confirmation remains required.` : "Market snapshot is being analyzed server-side."}</span></div>
           <div className="perps-chart" aria-label={`${market.symbol} live one-minute price chart`}>
             <div className="perps-chart-label"><span>MARK PRICE · 1M OHLCV</span><strong>{money(market.price)}</strong></div>
             <svg viewBox="0 0 900 250" preserveAspectRatio="none" role="img">

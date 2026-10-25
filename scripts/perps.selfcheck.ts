@@ -52,6 +52,8 @@ const aiLong = buildPerpsAIDecision({
 });
 assert.equal(aiLong.side, "LONG");
 assert.ok(aiLong.confidence >= 52);
+assert.equal(aiLong.drivers.length, 3);
+assert.match(aiLong.invalidation, /Reassess/);
 assert.match(formatPerpsWalletError(Object.assign(new Error("User rejected the request"), { code: 4001 }), "signing"), /Resume/);
 
 const closeLong = buildPerpsClosePlan({ signedSize: 20_000n, percentage: 50, lotSize: 10_000n, markPrice: 8_166_649n, tickSize: 10n });
